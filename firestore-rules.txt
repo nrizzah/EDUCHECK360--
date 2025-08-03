@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow creation during signup
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Admin users can read, write, and delete all user data
+      allow read, write, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Checklists collection - users can manage their own checklists
+    match /checklists/{checklistId} {
+      allow read, write: if request.auth != null && 
+        (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+        
+      // Admin users can read and delete all checklists
+      allow read, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Tasks collection - users can manage tasks in their checklists
+    match /Tasks/{taskId} {
+      allow read, write: if request.auth != null && 
+        (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+    }
+    
+    // System logs - authenticated users can create logs
+    match /systemLogs/{logId} {
+      allow create: if request.auth != null;
+      // Admin users can read and delete system logs
+      allow read, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
